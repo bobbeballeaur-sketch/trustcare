@@ -1,0 +1,149 @@
+/* TrustCare global styles: colours, fonts and accessibility modes. */
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: "Instrument Serif", Georgia, serif;
+
+  --color-paper: #ffffff;
+  --color-soft: #f7f6f3;
+  --color-card: #f1efea;
+  --color-ink: #0b0a09;
+  --color-ink-2: #66615a; /* the grey second line of headings (5.9:1 on white) */
+  --color-ink-3: #77726b;
+  --color-line: #e6e2db;
+  --color-accent: #e8622c; /* decorative orange: dots, glows, bars */
+  --color-accent-ink: #b0451b; /* orange that is safe for small text */
+  --color-night: #0f0c0a;
+  --color-night-2: #1c1612;
+  --color-ok: #1d7340;
+  --color-ok-soft: #e6f3ea;
+  --color-warn: #7a4e00;
+  --color-warn-soft: #fdf1d8;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-info-soft: #e9eef6;
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee-rev: marquee-rev 40s linear infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes marquee-rev {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4%, -6%) scale(1.12); }
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+html[data-text="small"] { font-size: 93.75%; }
+html[data-text="large"] { font-size: 118.75%; }
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visible keyboard focus everywhere (WCAG 2.4.7). */
+:focus-visible {
+  outline: 3px solid #f2b705;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 12px;
+  background: #fff;
+  color: #000;
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+/* Hindi script reads better slightly larger. */
+:lang(hi) { line-height: 1.6; }
+
+/* Mono "eyebrow" labels, like ■ VERIFIED DOCTORS */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Fade the edges of the scrolling chip rows. */
+.fade-x {
+  mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+}
+
+/* --- Reduce motion (toolbar button or device setting) --- */
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* --- High contrast mode: black background, white and yellow text --- */
+html[data-contrast="high"] body,
+html[data-contrast="high"] main,
+html[data-contrast="high"] section,
+html[data-contrast="high"] header,
+html[data-contrast="high"] footer,
+html[data-contrast="high"] aside,
+html[data-contrast="high"] nav,
+html[data-contrast="high"] article,
+html[data-contrast="high"] form,
+html[data-contrast="high"] dialog,
+html[data-contrast="high"] div,
+html[data-contrast="high"] li,
+html[data-contrast="high"] td,
+html[data-contrast="high"] th,
+html[data-contrast="high"] span,
+html[data-contrast="high"] label {
+  background-color: #000 !important;
+  background-image: none !important;
+  color: #fff !important;
+  border-color: #fff !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html[data-contrast="high"] a,
+html[data-contrast="high"] a * { color: #ffe14d !important; }
+html[data-contrast="high"] button,
+html[data-contrast="high"] input,
+html[data-contrast="high"] select,
+html[data-contrast="high"] textarea {
+  background: #000 !important;
+  color: #ffe14d !important;
+  border: 2px solid #ffe14d !important;
+}
+html[data-contrast="high"] video,
+html[data-contrast="high"] .hc-hide { display: none !important; }
+html[data-contrast="high"] svg { color: #ffe14d; }
