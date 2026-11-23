@@ -1,0 +1,375 @@
+// TrustCare database design.
+// Each "model" below becomes one table in the PostgreSQL database.
+// Read it like plain English: "a DoctorProfile has many Appointments".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED") // direct connection for migrations (Neon)
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+  HOSPITAL
+}
+
+enum ConsultMode {
+  CLINIC
+  VIDEO
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  REVOKED
+}
+
+enum AppointmentStatus {
+  REQUESTED
+  CONFIRMED
+  DECLINED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum CancelledBy {
+  PATIENT
+  DOCTOR
+  SYSTEM
+}
+
+enum ReportStatus {
+  OPEN
+  KEPT
+  HIDDEN
+}
+
+/// Everyone who can log in: patients, doctors and admins.
+model User {
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  phone             String
+  passwordHash      String
+  role              Role       @default(PATIENT)
+  status            UserStatus @default(ACTIVE)
+  suspendedReason   String?
+  preferredLanguage String     @default("en")
+  createdAt         DateTime   @default(now())
+
+  doctorProfile   DoctorProfile?
+  hospital        Hospital?
+  messages        Message[]
+  familyMembers   FamilyMember[]
+  appointments    Appointment[]   @relation("PatientAppointments")
+  reviews         Review[]
+  reports         ReviewReport[]
+  savedDoctors    SavedDoctor[]
+  notifications   Notification[]
+}
+
+/// People a patient can book for (mother, son ...).
+model FamilyMember {
+  id                 String        @id @default(cuid())
+  patientId          String
+  patient            User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name               String
+  relationship       String
+  dateOfBirth        String // YYYY-MM-DD
+  gender             String
+  accessibilityNeeds String?
+  appointments       Appointment[]
+  createdAt          DateTime      @default(now())
+
+  @@index([patientId])
+}
+
+/// Types of doctor, e.g. Dermatologist = "Skin doctor".
+model Specialisation {
+  id           String          @id @default(cuid())
+  name         String          @unique
+  simpleName   String
+  hindiName    String
+  slug         String          @unique
+  doctors      DoctorProfile[]
+  symptomRules SymptomRule[]
+  searches     SearchEvent[]
+}
+
+/// Neighbourhoods of Indore.
+model Area {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  hindiName String
+  pinCode   String
+  latitude  Float
+  longitude Float
+  doctors   DoctorProfile[]
+  hospitals Hospital[]
+  searches  SearchEvent[]
+}
+
+model Hospital {
+  id              String  @id @default(cuid())
+  userId          String? @unique // the hospital's own login (Hospital portal)
+  user            User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  latitude        Float   @default(22.72)
+  longitude       Float   @default(75.86)
+  bedsAvailable   Int     @default(0)
+  icuAvailable    Int     @default(0)
+  oxygenAvailable Boolean @default(true)
+  bloodGroups     String[] // blood groups in stock, e.g. ["A+", "O-"]
+  specialities    String[]
+  updatedAt       DateTime @default(now()) @updatedAt
+  name            String
+  address         String
+  areaId          String
+  area            Area    @relation(fields: [areaId], references: [id])
+  phone           String
+  open24x7        Boolean
+  emergencyWard   Boolean
+  acceptsAyushman Boolean
+  bloodBank       Boolean
+}
+
+/// The professional details of a doctor account.
+model DoctorProfile {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualifications      String
+  specialisationId    String
+  specialisation      Specialisation     @relation(fields: [specialisationId], references: [id])
+  experienceYears     Int
+  gender              String
+  languages           String[]
+  bio                 String
+  photoUrl            String?
+  registrationNumber  String
+  stateMedicalCouncil String
+  registrationYear    Int
+  verificationStatus  VerificationStatus @default(PENDING)
+  verifiedAt          DateTime?
+  verifiedByName      String?
+  rejectionReason     String?
+  clinicName          String
+  clinicAddress       String
+  areaId              String
+  area                Area               @relation(fields: [areaId], references: [id])
+  pinCode             String
+  clinicPhone         String
+  fee                 Int
+  acceptsAyushman     Boolean            @default(false)
+  // Clinic accessibility features
+  ramp                Boolean            @default(false)
+  lift                Boolean            @default(false)
+  accessibleWashroom  Boolean            @default(false)
+  groundFloor         Boolean            @default(false)
+  signLanguage        Boolean            @default(false)
+  textBooking         Boolean            @default(false)
+  homeVisits          Boolean            @default(false)
+  latitude            Float              @default(22.72) // exact clinic location on the map
+  longitude           Float              @default(75.86)
+  offersVideo         Boolean            @default(false) // online video consultations
+  videoFee            Int?
+  ratingAverage       Float              @default(0)
+  ratingCount         Int                @default(0)
+  createdAt           DateTime           @default(now())
+
+  availability AvailabilityBlock[]
+  leaves       Leave[]
+  appointments Appointment[]
+  reviews      Review[]
+  savedBy      SavedDoctor[]
+
+  @@index([verificationStatus])
+  @@index([specialisationId])
+  @@index([areaId])
+}
+
+/// Weekly working hours, e.g. Monday 10:00–13:00.
+model AvailabilityBlock {
+  id          String        @id @default(cuid())
+  doctorId    String
+  doctor      DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  dayOfWeek   Int // 0 = Sunday ... 6 = Saturday
+  startMinute Int // minutes after midnight, 600 = 10:00
+  endMinute   Int
+
+  @@index([doctorId])
+}
+
+/// A period when the doctor is away.
+model Leave {
+  id       String        @id @default(cuid())
+  doctorId String
+  doctor   DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  fromDate String // YYYY-MM-DD (India time)
+  toDate   String
+  reason   String?
+
+  @@index([doctorId])
+}
+
+model Appointment {
+  id                String            @id @default(cuid())
+  patientId         String
+  patient           User              @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  familyMemberId    String?
+  familyMember      FamilyMember?     @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  doctorId          String
+  doctor            DoctorProfile     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date              String // YYYY-MM-DD (India time)
+  startMinute       Int
+  status            AppointmentStatus @default(REQUESTED)
+  mode              ConsultMode       @default(CLINIC)
+  fee               Int               @default(0)
+  paymentStatus     PaymentStatus     @default(UNPAID)
+  paymentRef        String?
+  paidAt            DateTime?
+  reasonForVisit    String?
+  accessibilityNote String?
+  cancelReason      String?
+  cancelledBy       CancelledBy?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  review            Review?
+  messages          Message[]
+
+  @@index([doctorId, date])
+  @@index([patientId])
+}
+
+/// Only allowed for a COMPLETED appointment, one per appointment.
+model Review {
+  id                String         @id @default(cuid())
+  appointmentId     String         @unique
+  appointment       Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           User           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId          String
+  doctor            DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  waitRating        Int
+  explanationRating Int
+  valueRating       Int
+  text              String?
+  doctorReply       String?
+  isHidden          Boolean        @default(false)
+  hiddenReason      String?
+  createdAt         DateTime       @default(now())
+  reports           ReviewReport[]
+
+  @@index([doctorId])
+}
+
+model ReviewReport {
+  id           String       @id @default(cuid())
+  reviewId     String
+  review       Review       @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reportedById String
+  reportedBy   User         @relation(fields: [reportedById], references: [id], onDelete: Cascade)
+  reason       String
+  status       ReportStatus @default(OPEN)
+  createdAt    DateTime     @default(now())
+}
+
+model SavedDoctor {
+  patientId String
+  patient   User          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@id([patientId, doctorId])
+}
+
+/// Rules for the "Which doctor do I need?" guide.
+model SymptomRule {
+  id               String          @id @default(cuid())
+  bodyArea         String
+  symptom          String
+  symptomHindi     String
+  appliesTo        String          @default("all") // all | adult | child | pregnant | senior
+  specialisationId String?
+  specialisation   Specialisation? @relation(fields: [specialisationId], references: [id])
+  isEmergency      Boolean         @default(false)
+  isSelfHarm       Boolean         @default(false)
+}
+
+/// In-app notifications (the bell icon).
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+/// Anonymous search log for the admin "most searched" chart.
+model SearchEvent {
+  id               String          @id @default(cuid())
+  specialisationId String?
+  specialisation   Specialisation? @relation(fields: [specialisationId], references: [id])
+  areaId           String?
+  area             Area?           @relation(fields: [areaId], references: [id])
+  createdAt        DateTime        @default(now())
+}
+
+/// Log-in attempts, used to lock an email for 10 minutes after 5 wrong passwords.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
+
+/// Chat between a patient and a doctor, one thread per appointment.
+model Message {
+  id            String      @id @default(cuid())
+  appointmentId String
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  text          String
+  createdAt     DateTime    @default(now())
+
+  @@index([appointmentId, createdAt])
+}
+
+/// Messages that connect the two browsers in a video call (WebRTC "signalling").
+model CallSignal {
+  id            String   @id @default(cuid())
+  appointmentId String
+  fromUserId    String
+  type          String // join | offer | answer | ice | hangup
+  payload       String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@index([appointmentId, createdAt])
+}
