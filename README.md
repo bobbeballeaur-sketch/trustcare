@@ -21,3 +21,4 @@ The build creates the tables and loads the demo data automatically.
 Next.js 16 (React, TypeScript), Tailwind CSS, PostgreSQL + Prisma, Zod validation (browser + server),
 Cloudflare Turnstile CAPTCHA, Mapbox map, WebRTC video calls, GSAP + Lenis animations.
 Hero video: Mixkit free stock footage (see `public/media/CREDITS.txt`).
+Deployed using Vercel and Neon.
