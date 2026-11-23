@@ -1,0 +1,19 @@
+/* Map pins */
+.tc-pin {
+  position: relative;
+  display: flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px 999px 999px 4px;
+  transform: rotate(-45deg);
+  background: #0b0a09;
+  border: 2px solid #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+.tc-pin span { transform: rotate(45deg); color: #fff; font: 600 11px/1 system-ui, sans-serif; }
+.tc-pin i { position: absolute; top: -4px; right: -4px; height: 12px; width: 12px; border-radius: 999px; background: #e8622c; border: 2px solid #fff; }
+.tc-pin-h { background: #b42318; }
+.tc-pin:hover, .tc-pin:focus-visible { transform: rotate(-45deg) scale(1.15); }
